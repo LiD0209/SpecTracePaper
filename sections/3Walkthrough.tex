@@ -1,0 +1,63 @@
+\section{End-to-End Walkthrough}
+\label{sec:walkthrough}
+
+This section illustrates the end-to-end behavior of \tool{} using a simplified
+transport-parameter example. The purpose is to make the data transformations
+concrete before presenting the full implementation details.
+
+\subsection{From Standard Text to a Rule}
+
+Suppose a transport standard states that an endpoint receiving a parameter
+below a specified lower bound must treat the message as a protocol error. The
+sentence is not enough by itself. The checker must know which field is
+constrained, which condition activates the rule, what behavior is required, and
+where the requirement appears in the document. \tool{} first resolves the
+parameter mention against the field space:
+\[
+\begin{aligned}
+C &: \textit{parameter is present in peer transport parameters},\\
+f &: \textit{max\_udp\_payload\_size},\\
+A &: \textit{reject values below 1200 with a protocol error},\\
+M &: \textit{MUST}.
+\end{aligned}
+\]
+The rule retains the original sentence and section number. If another section
+defines the bound or error code, that section is attached as a dependency.
+
+\subsection{From Rule to Code Evidence}
+
+The aligner expands the field name into aliases such as
+\texttt{max\_udp\_payload\_size}, \texttt{max\_payload}, and
+\texttt{udp\_payload}. Exact matches alone are insufficient: one file may define
+the transport-parameter identifier, another may parse the integer, and a third
+may validate the configured connection state. \tool{} therefore retrieves a
+bundle containing the parser assignment, the validation helper, and the error
+return path. Each snippet is tagged with why it was selected: exact field hit,
+symbol scope, action-token overlap, or caller expansion.
+
+\subsection{From Evidence to a Judgment}
+
+In the first reasoning round, the model sees the assignment but not the caller
+that checks the helper's return value. A one-shot checker may incorrectly report
+a missing rejection path. \tool{} instead emits \textsc{Insufficient} with a
+typed request for callers of the validation helper. In the second round, the
+caller evidence shows that the error return is propagated to connection close.
+The final label becomes \textsc{Consistent}. In a different implementation, the
+second round might show that the lower-bound check is absent while nearby
+upper-bound checks are present, yielding a defect hypothesis.
+
+\subsection{From Hypothesis to Validation}
+
+For a suspected mismatch, the validation agent constructs a parameter block
+whose value violates the lower bound. It then chooses the closest available
+entry point: a unit-test parser if one exists, otherwise a small harness around
+the parser function, otherwise a command-line or integration test. The oracle is
+derived from the rule: the implementation should reject the input with the
+specified protocol error. The final report records the input, command line,
+build options, observed return value, and log excerpt. If the harness cannot
+reach the relevant path, the report remains unresolved rather than confirmed.
+
+This walkthrough highlights the main difference between \tool{} and direct LLM
+inspection. The model is never asked to solve the entire problem from a large
+prompt. It receives a constrained rule, a small evidence bundle, and an explicit
+choice to request more evidence when the bundle is incomplete.

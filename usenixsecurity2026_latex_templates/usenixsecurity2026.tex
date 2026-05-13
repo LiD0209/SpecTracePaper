@@ -1,0 +1,71 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SpecFSM paper.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[letterpaper,twocolumn,10pt]{article}
+\usepackage{usenix}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{pgfplots}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+
+\usetikzlibrary{positioning}
+\pgfplotsset{compat=1.18}
+\graphicspath{{sections/}{../sections/}}
+
+\makeatletter
+\newcommand{\projectinput}[1]{%
+  \InputIfFileExists{#1}{}{%
+    \InputIfFileExists{../#1}{}{%
+      \PackageError{specfsm}{File `#1' not found}{%
+        Keep the section file next to the workspace root or one level above the
+        main TeX file.%
+      }%
+    }%
+  }%
+}
+\makeatother
+
+\newcommand{\tool}{SpecFSM}
+\newcommand{\ruleform}{$\langle C, f, A \rangle$}
+
+\begin{document}
+
+\date{}
+
+\title{\Large \bf \tool: Field-Centric Reasoning and Test Validation for Protocol Specification Compliance}
+
+\author{
+{\rm Anonymous Authors}\\
+Paper under double-blind review
+}
+
+\maketitle
+
+\begin{abstract}
+\projectinput{sections/0Abstract.tex}
+\end{abstract}
+
+\projectinput{sections/1Introduction.tex}
+\projectinput{sections/2Background.tex}
+\projectinput{sections/3Overview.tex}
+\projectinput{sections/4Method.tex}
+\projectinput{sections/6Evaluation.tex}
+\projectinput{sections/7Discussion.tex}
+\projectinput{sections/8RelatedWork.tex}
+\projectinput{sections/9Conclusion.tex}
+
+\bibliographystyle{plainurl}
+\bibliography{usenixsecurity2026}
+
+\appendix
+\projectinput{sections/Appendix.tex}
+
+\end{document}

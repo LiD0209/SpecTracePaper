@@ -1,0 +1,19 @@
+Protocol implementations are expected to follow natural-language standards, yet
+small semantic deviations in field handling, state-dependent checks, and error
+paths can silently undermine interoperability and security. Existing conformance
+techniques remain limited by costly manual formalization or weak links between
+normative text and code evidence. This paper
+presents \tool, a framework that checks protocol implementations against
+standards by using protocol fields as the semantic bridge between
+natural-language rules and executable code. \tool first searches variables and
+extracts field-centric rules from standards, maps each rule to implementation
+variables and contexts, and then uses a reasoning-and-test agent to distinguish
+consistent behavior, inconsistent behavior, and insufficient evidence. On
+real-world implementations of TLS, MQTT, and QUIC, \tool generated
+204 conformance-deviation reports. Of these reports, 126 have been confirmed
+and fixed by maintainers, roughly nine were false positives, and the remaining
+reports are awaiting maintainer response or final adjudication; two confirmed
+issues became previously unknown CVEs. Using GPT-5.4 pricing as the cost model,
+\tool costs \$1.122 per submitted report, suggesting that field-constrained LLM
+reasoning can be practical when paired with code-context extraction and
+reproducible validation artifacts.

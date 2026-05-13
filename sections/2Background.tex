@@ -1,0 +1,81 @@
+\section{Background and Motivation}
+\label{sec:background}
+
+\subsection{Field-Level Conformance}
+
+Protocol conformance asks whether an implementation satisfies the behavioral
+requirements stated by a standard. For natural-language standards, this is a
+specification-to-code alignment problem: the checker must connect a normative
+requirement to the protocol object it constrains and to the implementation
+behavior that determines whether the requirement is satisfied. Incorrect
+alignment can produce a wrong conclusion, for example when a length rule is
+matched to an unrelated buffer or when a validation path is missed because it is
+enforced outside the parser.
+
+This work focuses on \emph{field-level semantic conformance}. Fields are a
+useful boundary because standards define them through message formats,
+parameter tables, and normative prose, while implementations eventually
+represent them through parsed values, state variables, or validation logic. The
+names may differ, but the field gives the checker a stable object to track.
+This scope is narrower than full protocol verification, but it covers many
+practical defects because parsing, validation, and error handling are usually
+organized around fields.
+
+\subsection{Normative Modalities}
+
+The strength of a conformance claim depends on normative modality. Requirements
+phrased with \emph{MUST} or \emph{MUST NOT} usually support direct violation
+reports. Requirements phrased with \emph{SHOULD} are tracked but reported as
+lower-severity deviations, while \emph{MAY} usually indicates optional behavior
+and is ignored as a primary check target. \tool{} records modality as part of
+each rule and uses it to rank report severity. A \emph{MUST NOT accept} rule
+with a reproducible accepting input is reported as a strong inconsistency. A
+\emph{SHOULD reject} rule with similar evidence is reported as a SHOULD-level
+deviation rather than a low-confidence result. This distinction is important
+because protocol standards often encode both hard interoperability constraints
+and softer deployment guidance.
+
+\subsection{A Running Example}
+
+Consider a simplified QUIC transport rule: if an endpoint receives a transport
+parameter that violates a specified bound, it must terminate the connection with
+a protocol error. The standard may express this requirement across a field
+definition, a paragraph about transport parameters, and an error-handling
+section. The implementation may parse the parameter in one file, store it in a
+connection configuration structure, validate it in a helper, and trigger the
+error through a callback. A direct text-to-code query such as ``does the code
+enforce the transport parameter bound?'' is under-specified: the relevant
+variable names, call chain, and build configuration are all missing.
+
+\tool{} handles the example by first extracting a rule such as
+\[
+\begin{aligned}
+C &= \textit{parameter received},\\
+f &= \textit{max\_udp\_payload\_size},\\
+A &= \textit{reject values below the lower bound}.
+\end{aligned}
+\]
+It then searches for identifiers and code regions related to the field,
+including aliases such as \texttt{max\_udp\_payload},
+\texttt{udp\_payload\_size}, or structure members embedded in parser state.
+If the first retrieved context only shows assignment but not validation, the
+reasoning agent emits \emph{insufficient evidence} and requests callers or
+validation helpers. Only after the evidence covers the relevant path does the
+system report a consistency judgment. For a suspected deviation, the test agent
+attempts to construct a packet or configuration that exercises the suspicious
+path and observes whether the implementation accepts or rejects it.
+
+% \subsection{Threats to Naive LLM Checking}
+
+% LLMs are useful because they can relate prose to code-level intent, but
+% conformance checking punishes ungrounded flexibility. First, field names are
+% ambiguous: a standard may use a short name in one paragraph and a fully
+% qualified message path in another. Second, code identifiers are indirect:
+% \texttt{len}, \texttt{payload\_len}, and \texttt{param->value} may refer to
+% different protocol objects depending on scope. Third, evidence is often
+% negative: a missing check is meaningful only after the checker has searched
+% the right parser, validation helper, and caller constraints. Finally, execution
+% semantics may depend on macros, compile-time options, and runtime configuration.
+% \tool{} is designed around these threats. It constrains field references,
+% retrieves code structurally, records uncertainty, and validates high-risk
+% claims dynamically when possible.

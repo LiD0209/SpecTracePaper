@@ -1,0 +1,106 @@
+\section{Introduction}
+
+Modern network services depend on implementations of protocol standards such as
+TLS, MQTT, and QUIC. These standards specify how endpoints authenticate peers,
+negotiate cryptographic parameters, reject malformed messages, preserve session
+state, and interoperate across independent
+implementations~\cite{rfc8446,rfc9000,rfc9001,rfc9002,mqtt311,mqtt5}. Even when
+the standard is clear, an implementation can still diverge in subtle
+field-handling, state-checking, or error-path behavior. Such implementation
+deviations are not merely benign compatibility quirks: they may cause an
+implementation to accept a forbidden field value, skip a required
+state-dependent check, reject a legal message, or expose different behavior
+under a build option that deployers rarely test. The consequences range from
+interoperability failures to downgrade opportunities and denial-of-service
+conditions.
+
+Checking these deviations is difficult because the two sides of the problem are
+written in radically different languages. Standards are natural-language
+documents whose normative requirements are distributed across field tables,
+message descriptions, state-machine prose, compatibility notes, and exception
+clauses. RFC-style normative language provides useful cues~\cite{rfc2119,rfc8174}, but
+those cues do not by themselves identify executable code obligations.
+Implementations are engineering artifacts with macros, configuration
+flags, generated code, helper functions, callbacks, and optimized error paths.
+The most important evidence for a single rule may be split across a parser, a
+state transition, a validation helper, and a caller-imposed precondition. A
+checker must therefore answer a consistency question rather than a mere
+localization question: under the conditions described by a normative rule, does
+the implementation enforce the required behavior on the relevant code paths?
+
+Existing approaches cover only parts of this question. Formal methods can prove
+strong properties once a formal model exists, but constructing such a model from
+an evolving RFC or industry standard remains expensive and requires expertise.
+Protocol fuzzing and conformance tests exercise implementations, but they often
+use test oracles that are written separately from individual normative
+requirements, making it difficult to tell which field-level rule a test
+validates or leaves unchecked.
+Static analysis can reason over code structure, yet it typically has no access
+to the semantics of the standard. Recent large language models provide a new
+opportunity: their ability to jointly interpret natural-language requirements
+and source code makes it possible to bridge standards and implementations
+without requiring a complete hand-written formal model. However, this
+opportunity is useful for conformance checking only when the model is given
+precise obligations and the code evidence needed to evaluate them.
+
+This paper is based on a simple observation: although protocol standards are
+written as prose, many checkable requirements are ultimately anchored in fields.
+A standard may state that a field must be present only under a condition, that a
+length must match another field, that a value must be derived from a negotiated
+parameter, or that a malformed combination must trigger an alert. These rules
+can be represented as field-centric assertions of the form \ruleform: under
+condition $C$, field $f$ must satisfy action or constraint $A$. This
+representation is not a full formal semantics of the protocol. Instead, it is a
+practical intermediate layer for organizing evidence, aligning specifications
+to code, and making uncertainty explicit when the current evidence is not
+enough.
+
+We present \tool, a framework for checking whether protocol implementations
+satisfy field-level requirements in natural-language standards. \tool first
+constructs a field space from message structures, extensions, and field
+definitions, then extracts field-centric rules from normative prose. It next
+maps each rule to code by combining LLM-based semantic ranking, identifier
+normalization, Tree-sitter and language-native AST evidence, and deterministic
+filtering. Rather than asking a model for a one-shot verdict, \tool performs
+iterative consistency reasoning: the model must report supporting evidence,
+missing evidence, and one of three outcomes: consistent, inconsistent, or
+insufficient evidence. When the outcome is suspicious or under-supported, a
+test-validation agent attempts to construct an executable counterexample that
+confirms or refutes the static hypothesis.
+
+The goal is not to make the LLM itself the checker. Instead, \tool{} turns the
+model's language-and-code understanding into an evidence-producing workflow:
+field-centric rules define what must be checked, syntax-aware retrieval
+collects the relevant implementation context, consistency reasoning records
+supporting and missing evidence, and validation tests turn high-risk static
+judgments into observable behavior when possible. The result is a framework
+that can process natural-language standards while still producing reproducible
+conformance claims.
+
+We evaluate \tool on real-world implementations covering TLS, MQTT, and QUIC.
+\tool generated 204 conformance-deviation reports.
+Maintainers have confirmed and fixed 126 of them, roughly nine reports were
+false positives, and 69 are still awaiting response or final adjudication. Two
+confirmed reports correspond to previously unknown CVEs. The analysis is also
+inexpensive relative to manual audit: using GPT-5.4 pricing as the cost model,
+\tool spends \$1.122 per submitted report on average. These results suggest
+that LLMs can support protocol conformance checking when their judgments are
+grounded in field-level rules, implementation context, and validation
+artifacts.
+
+This paper makes the following contributions:
+\begin{itemize}[leftmargin=*]
+  \item We formulate protocol conformance checking as a field-centric
+  specification-to-implementation consistency problem, using \ruleform{} rules
+  to represent checkable obligations from natural-language standards.
+
+  \item We design \tool, an evidence-driven pipeline that extracts field-level
+  rules, aligns them to implementation variables and code contexts, reasons
+  over consistency with explicit missing-evidence states, and validates
+  suspected inconsistencies with executable tests when possible.
+
+  \item We provide an empirical study, ablations, and case studies over
+  real-world protocol implementations, producing 204 submitted reports, 126
+  maintainer-confirmed fixes, roughly nine false positives, and two previously
+  unknown CVEs.
+\end{itemize}

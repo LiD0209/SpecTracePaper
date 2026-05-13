@@ -1,0 +1,82 @@
+\section{Implementation}
+\label{sec:implementation}
+
+We implemented \tool{} as a modular analysis pipeline. The current prototype
+contains four components: a standard parser, a code indexer, an LLM orchestration
+layer, and a validation-test runner. This section describes implementation
+choices that affect reproducibility and engineering trade-offs.
+
+\textbf{Standard processing.}
+The standard parser ingests RFC-style text, markdown, HTML, or converted PDF
+text. It segments documents by section, preserves sentence offsets, and detects
+normative keywords using a conservative lexicon derived from RFC 2119-style
+language. Field candidates are extracted from message diagrams, bullet lists,
+tables, and definitional paragraphs. When a field candidate is ambiguous, the
+parser retains all candidates and asks the extraction stage to resolve the
+reference against local context.
+
+\textbf{Code indexing.}
+The code indexer supports C, C++, Rust, and Python in the prototype. It uses
+Tree-sitter for a uniform symbol index and language-native parsers where
+available for richer scope information. Each indexed symbol records its file,
+scope, declaration span, use spans, surrounding comments, and enclosing
+function or type. The indexer also extracts a lightweight call graph from direct
+calls and function-pointer-like patterns when they are syntactically visible.
+
+\textbf{LLM orchestration.}
+LLM calls are isolated behind typed prompts with JSON-like output schemas. The
+pipeline uses low-temperature decoding for extraction, alignment, and
+reasoning. Every LLM output passes through a deterministic validator that checks
+schema validity, source-span existence, identifier presence, duplicate entries,
+and label membership. Invalid outputs are retried with a compact repair prompt;
+after the retry budget is exhausted, \tool{} falls back to deterministic
+rankings or marks the sample as insufficient evidence.
+
+\textbf{Prompt boundaries.}
+The prompts are intentionally narrow. The extractor sees a section and the
+field space, not the whole standard. The aligner sees a rule and ranked code
+snippets, not the whole repository. The reasoner sees the evidence bundle and
+must cite snippet identifiers rather than free-form code claims. This design
+keeps token cost manageable and makes the output auditable.
+
+\textbf{Validation runner.}
+The validation runner currently supports three modes: extending an existing
+unit test, creating a small harness around a parser or validation function, and
+driving a command-line implementation with generated inputs. The runner records
+compiler options, environment variables, command lines, exit status, stdout,
+stderr, and relevant logs. If the target cannot be built or the path cannot be
+reached, the sample is not counted as confirmed.
+
+\textbf{Parameters.}
+Unless otherwise stated, the prototype keeps the top 8 files after file
+ranking, the top 20 variable candidates per rule, and the top 12 snippets per
+reasoning round. The maximum number of evidence-completion rounds is three. The
+validation agent receives at most two attempts per hypothesis before reporting
+unmet validation conditions. We tune these parameters on held-out protocol
+sections and keep them fixed for all evaluated implementations.
+
+\textbf{Caching and determinism.}
+To make repeated runs auditable, \tool{} stores every prompt, response,
+validator decision, and retrieved code bundle under a content hash. When the
+same rule and repository snapshot are analyzed again, deterministic stages are
+reused and LLM stages can be replayed from cache. The cache is also useful for
+manual inspection: a reviewer can open a report and see the exact evidence
+available to the reasoner at each round.
+
+\textbf{Failure handling.}
+The implementation distinguishes recoverable and terminal failures. Recoverable
+failures include malformed model output, missing optional build metadata, or a
+snippet that cannot be parsed by one parser but can still be indexed by
+Tree-sitter. Terminal failures include missing source files, standards that
+cannot be segmented, or implementations that cannot expose any parse or
+validation entry point. Terminal failures are reported as coverage gaps rather
+than silently omitted from aggregate metrics.
+
+\textbf{Manual review interface.}
+Although \tool{} is designed for automation, the prototype emits a compact
+review bundle for each candidate. The bundle contains the source text, the
+normalized rule, ranked variables, selected snippets, reasoning transcript,
+validation commands, and final label. This interface is important for building
+ground truth: protocol experts and maintainers can correct a rule, mark an
+implementation-specific exception, or confirm that a test demonstrates a real
+deviation.

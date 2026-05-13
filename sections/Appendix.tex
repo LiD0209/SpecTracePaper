@@ -1,0 +1,213 @@
+\section{Appendix}
+\label{sec:appendix}
+
+\subsection{Artifact Checklist}
+
+The artifact for \tool{} contains the following components:
+\begin{itemize}[leftmargin=*]
+  \item Parsed protocol standards, extracted field spaces, and rule files.
+  \item Source-code commit hashes and build instructions for every subject.
+  \item Prompt templates, model settings, retry budgets, and validators.
+  \item Alignment outputs with variable and code-context rankings.
+  \item Consistency reports with evidence bundles and uncertainty notes.
+  \item Validation tests, harnesses, generated inputs, and execution logs.
+  \item Scripts that reproduce tables and figures from raw results.
+\end{itemize}
+
+\subsection{Responsible Disclosure}
+
+Two confirmed reports were assigned CVEs after disclosure. For security-sensitive
+reports, we share full reproduction details with maintainers and reviewers while
+withholding exploit-ready inputs from public artifacts until the corresponding
+fixes are available. Bug counts in the paper include only reports that were
+triaged against the standard and implementation evidence; fixed counts require a
+maintainer patch or explicit fix confirmation.
+
+\subsection{Metric Provenance}
+
+Table~\ref{tab:metric-provenance} summarizes the label source for the main
+evaluation metrics. The table is included to make clear which metrics are
+externally adjudicated and which are internal measurements.
+
+\begin{table*}[t]
+\centering
+\caption{Provenance and denominator for reported evaluation metrics.}
+\label{tab:metric-provenance}
+\small
+\begin{tabular}{p{0.18\textwidth}p{0.29\textwidth}p{0.23\textwidth}p{0.20\textwidth}}
+\toprule
+\textbf{Metric} & \textbf{Unit} & \textbf{Label source} & \textbf{Denominator} \\
+\midrule
+Var@k, Ctx@k & Rule-implementation alignment sample & Two-author annotation and consensus review & 312 stratified pairs \\
+Submitted reports & Unique rule-implementation violation & System report plus author de-duplication & All submitted reports \\
+Confirmed/fixed & Submitted report & Maintainer patch or explicit fix confirmation & Submitted reports \\
+False positives & Submitted report & Maintainer rejection, expert adjudication, or counter-test & Adjudicated reports \\
+Pending & Submitted report & No sufficient maintainer or review signal yet & Submitted reports \\
+Adj.P & Submitted report & Confirmed/fixed and false-positive labels & Confirmed/fixed + false positives \\
+Ablation coverage & Confirmed-fixed full-system report & Whether variant reproduced that report & 126 confirmed-fixed reports \\
+CVE & Security-relevant confirmed report & Assigned CVE after disclosure & Confirmed reports \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Codebase Registry}
+
+Table~\ref{tab:codebase-registry} lists every evaluated codebase represented in
+the blinded artifact. This table complements the sampled report-index rows:
+Tables~\ref{tab:sample-report-index-tls} and
+\ref{tab:sample-report-index-mqtt} show only representative reports, whereas
+the registry enumerates all codebases that contribute to the aggregate counts.
+
+\begin{table*}[t]
+\centering
+\caption{Blinded codebase registry used by the artifact. All rows omit public
+repository links and maintainer-thread identifiers. Rule counts are shared by
+all implementations of the same protocol version.}
+\label{tab:codebase-registry}
+\small
+\renewcommand{\arraystretch}{1.08}
+\setlength{\tabcolsep}{3.2pt}
+\begin{tabular}{p{0.095\textwidth}p{0.155\textwidth}p{0.105\textwidth}p{0.11\textwidth}rrrrp{0.22\textwidth}}
+\toprule
+\textbf{Blind codebase ID}
+& \textbf{Codebase}
+& \textbf{Protocol}
+& \textbf{Shared rule set}
+& \textbf{Sub.}
+& \textbf{Conf.}
+& \textbf{FP}
+& \textbf{Pend.}
+& \textbf{Artifact records} \\
+\midrule
+CB-TLS-OSSL & OpenSSL openssl & TLS 1.3 & RFC 8446 / 312 & 14 & 9 & 1 & 4 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-TLS-WOLF & wolfSSL wolfssl & TLS 1.3 & RFC 8446 / 312 & 23 & 15 & 1 & 7 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-TLS-MBED & Mbed TLS mbedtls & TLS 1.3 & RFC 8446 / 312 & 17 & 11 & 1 & 5 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-TLS-HITL & openHiTLS openHiTLS & TLS 1.3 & RFC 8446 / 312 & 19 & 12 & 1 & 6 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-DTLS-BSSL & BoringSSL boringssl & DTLS 1.3 & RFC 9147 / 198 & 12 & 5 & 0 & 7 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-QUIC-QUICHE & Cloudflare quiche & QUIC & RFC 9000 / 286 & 24 & 15 & 1 & 8 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-QUIC-NGTCP2 & ngtcp2 ngtcp2 & QUIC & RFC 9000 / 286 & 18 & 11 & 1 & 6 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-COAP-LIBCOAP & libcoap libcoap & CoAP & RFC 7252 / 143 & 18 & 11 & 1 & 6 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-MQTT-WMQ & wolfSSL wolfMQTT & MQTT 3.1.1 & OASIS 3.1.1 / 127 & 22 & 14 & 1 & 7 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-MQTT-MOS3 & Eclipse Mosquitto & MQTT 3.1.1 & OASIS 3.1.1 / 127 & 16 & 10 & 0 & 6 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+CB-MQTT-MOS5 & Eclipse Mosquitto & MQTT 5.0 & OASIS 5.0 / 164 & 21 & 13 & 1 & 7 & Standard spans, normalized rules, code evidence, tests, adjudication notes \\
+\midrule
+Total & -- & -- & -- & 204 & 126 & 9 & 69 & Aggregate tables reproduced from the blinded report index \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Blinded Report Index Excerpt}
+
+Tables~\ref{tab:sample-report-index-tls} and
+\ref{tab:sample-report-index-mqtt} show excerpts of the blinded report index.
+The complete index is included in the artifact and contains one row per
+submitted report. Each row records the rule identifier, standard span, subject
+version, evidence type, validation status, and adjudication outcome. External
+references are anonymized for double-blind review, but the blinded identifiers
+are stable across the index, logs, validation artifacts, and table-generation
+scripts. The codebase column uses the full project-facing codebase name and
+protocol version; the complete artifact contains rows for all evaluated
+codebases, including OpenSSL, wolfSSL, Mbed TLS, openHiTLS, BoringSSL, quiche,
+ngtcp2, libcoap, wolfMQTT, and Mosquitto.
+
+\begin{table*}[p]
+\centering
+\caption{Excerpt of the TLS-family blinded report index used to compute the
+aggregate evaluation results. The artifact contains the complete index with one
+row per submitted report. External issue, patch, and disclosure references are
+replaced by stable blinded identifiers for double-blind review.}
+\label{tab:sample-report-index-tls}
+\footnotesize
+\renewcommand{\arraystretch}{1.05}
+\setlength{\tabcolsep}{2.0pt}
+\begin{tabular}{p{0.067\textwidth}p{0.042\textwidth}p{0.165\textwidth}p{0.405\textwidth}p{0.165\textwidth}p{0.10\textwidth}}
+\toprule
+\textbf{Blind ID} & \textbf{Rule} & \textbf{Codebase / protocol} & \textbf{Finding summary} & \textbf{Evidence / validation} & \textbf{Outcome} \\
+\midrule
+B-WOLF-01 & 319 & wolfSSL wolfssl / TLS 1.3 & 0-RTT anti-replay minimum requirement not enforced & State machine; runtime test & Fixed \\
+B-WOLF-02 & 45 & wolfSSL wolfssl / TLS 1.3 & Distinguishable PSK identity and binder failure paths & Handshake state; runtime test & Fixed \\
+B-WOLF-03 & 32 & wolfSSL wolfssl / TLS 1.3 & SHA-1/MD5 certificate policy compliance gap & Policy path; runtime test & Fixed/CVE \\
+B-WOLF-04 & 201 & wolfSSL wolfssl / TLS 1.3 & SNI missing-extension alert inconsistency & Parser/alert; runtime test & Fixed \\
+B-WOLF-05 & 29 & wolfSSL wolfssl / TLS 1.3 & certificate\_authorities length-boundary verification & Parser/bounds; counter-test & False positive \\
+B-WOLF-06 & 253 & wolfSSL wolfssl / TLS 1.3 & Client certificate extensions offered-list inconsistency & Extension parser; runtime test & Fixed \\
+B-WOLF-07 & 254 & wolfSSL wolfssl / TLS 1.3 & Server certificate extensions offered-list inconsistency & Extension parser; runtime test & Fixed \\
+B-WOLF-08 & 329 & wolfSSL wolfssl / TLS 1.3 & X25519/X448 all-zero shared-secret check & Crypto check; runtime test & Fixed \\
+B-WOLF-09 & 436 & wolfSSL wolfssl / TLS 1.3 & Post-handshake-auth receive-side enforcement gap & Handshake state; runtime test & Fixed \\
+B-WOLF-10 & 592 & wolfSSL wolfssl / TLS 1.3 & ticket\_lifetime = 0 immediate-discard semantics & Ticket state; static review & Pending \\
+B-HITL-01 & 29 & openHiTLS openHiTLS / TLS 1.3 & certificate\_authorities length-boundary inconsistency & Parser/bounds; static review & Pending \\
+B-HITL-02 & 45 & openHiTLS openHiTLS / TLS 1.3 & Observable difference between invalid binder and no valid identity & Handshake state; runtime test & Pending \\
+B-HITL-03 & 140 & openHiTLS openHiTLS / TLS 1.3 & cipher\_suite offered-list validation inconsistency & Negotiation path; static review & Pending \\
+B-HITL-04 & 163 & openHiTLS openHiTLS / TLS 1.3 & key\_share ordering semantics inconsistency & Handshake state; static review & Pending \\
+B-HITL-05 & 420 & openHiTLS openHiTLS / TLS 1.3 & Missing ticket-age validation & Ticket state; runtime test & Confirmed \\
+B-OSSL-01 & 45 & OpenSSL openssl / TLS 1.3 & Inconsistent TLS 1.3 PSK handling & Handshake state; runtime test & Fixed \\
+B-OSSL-02 & 192 & OpenSSL openssl / TLS 1.3 & HelloRetryRequest with an empty cookie & Extension parser; runtime test & Fixed \\
+B-OSSL-03 & 209 & OpenSSL openssl / TLS 1.3 & Certificate-signature failure alert semantics & Alert path; static review & Confirmed \\
+B-OSSL-04 & 252 & OpenSSL openssl / TLS 1.3 & Duplicate extension-type handling & Extension parser; counter-test & False positive \\
+B-OSSL-05 & 303 & OpenSSL openssl / TLS 1.3 & OfferedPsks binder-identity correspondence & PSK parser; counter-test & False positive \\
+B-OSSL-06 & 307 & OpenSSL openssl / TLS 1.3 & OfferedPsks.identities lower-bound inconsistency & Parser/bounds; runtime test & Fixed \\
+B-OSSL-07 & 364 & OpenSSL openssl / TLS 1.3 & TLSPlaintext legacy\_record\_version handling gap & Record parser; runtime test & Fixed \\
+B-MBED-01 & 45 & Mbed TLS mbedtls / TLS 1.3 & PSK binder failure and unknown identity distinction & Handshake state; runtime test & Confirmed \\
+B-MBED-02 & SIG & Mbed TLS mbedtls / TLS 1.3 & Certificate signature algorithm constraint gap & Policy path; runtime test & Fixed \\
+B-MBED-03 & 14 & Mbed TLS mbedtls / TLS 1.3 & TLS 1.3 certificate-chain signature policy gap & Policy path; runtime test & Fixed/CVE \\
+B-MBED-04 & 275 & Mbed TLS mbedtls / TLS 1.3 & extension\_data parsers accept trailing bytes & Parser/bounds; runtime test & Fixed \\
+B-MBED-05 & 292 & Mbed TLS mbedtls / TLS 1.3 & ServerHello key\_share group not declared by client & Handshake state; static review & Pending \\
+B-MBED-06 & 488 & Mbed TLS mbedtls / TLS 1.3 & HRR selected\_group not advertised in original supported\_groups & Handshake state; runtime test & Acknowledged \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[p]
+\centering
+\caption{Excerpt of the MQTT-family blinded report index used to compute the
+aggregate evaluation results. The artifact contains the complete index with one
+row per submitted report. External issue, patch, and disclosure references are
+replaced by stable blinded identifiers for double-blind review.}
+\label{tab:sample-report-index-mqtt}
+\footnotesize
+\renewcommand{\arraystretch}{1.05}
+\setlength{\tabcolsep}{2.0pt}
+\begin{tabular}{p{0.067\textwidth}p{0.042\textwidth}p{0.165\textwidth}p{0.405\textwidth}p{0.165\textwidth}p{0.10\textwidth}}
+\toprule
+\textbf{Blind ID} & \textbf{Rule} & \textbf{Codebase / protocol} & \textbf{Finding summary} & \textbf{Evidence / validation} & \textbf{Outcome} \\
+\midrule
+B-WMQ-01 & 1 & wolfSSL wolfMQTT / MQTT 3.1.1 & Persistent session stores subscriptions but not offline QoS$>$0 queue & Session state; runtime test & Fixed \\
+B-WMQ-02 & 4 & wolfSSL wolfMQTT / MQTT 3.1.1 & Invalid SUBSCRIBE fixed-header flags accepted & Packet parser; runtime test & Fixed \\
+B-WMQ-03 & 5 & wolfSSL wolfMQTT / MQTT 3.1.1 & Invalid UNSUBSCRIBE fixed-header flags accepted & Packet parser; runtime test & Fixed \\
+B-WMQ-04 & 8 & wolfSSL wolfMQTT / MQTT 3.1.1 & PUBREL fixed-header reserved bits not validated & Packet parser; runtime test & Fixed \\
+B-WMQ-05 & 17 & wolfSSL wolfMQTT / MQTT 3.1.1 & Zero-length ClientId not bound to CleanSession & Connect path; runtime test & Fixed \\
+B-WMQ-06 & 29 & wolfSSL wolfMQTT / MQTT 3.1.1 & UTF-8 well-formedness validation missing & String parser; runtime test & Fixed \\
+B-WMQ-07 & 33 & wolfSSL wolfMQTT / MQTT 3.1.1 & NUL character rejection missing in UTF-8 strings & String parser; runtime test & Fixed \\
+B-WMQ-08 & 102 & wolfSSL wolfMQTT / MQTT 3.1.1 & Packet identifier in-use collision not rejected & Packet state; runtime test & Fixed \\
+B-WMQ-09 & 148 & wolfSSL wolfMQTT / MQTT 3.1.1 & CONNECT flags cross-constraint violations accepted & Packet parser; runtime test & Fixed \\
+B-WMQ-10 & 183 & wolfSSL wolfMQTT / MQTT 3.1.1 & PUBLISH QoS bits 11 accepted instead of rejected & Packet parser; runtime test & Fixed \\
+B-WMQ-11 & 231 & wolfSSL wolfMQTT / MQTT 3.1.1 & Topic-filter multi-level wildcard validation missing & Topic parser; runtime test & Fixed \\
+B-WMQ-12 & 330 & wolfSSL wolfMQTT / MQTT 3.1.1 & Will topic UTF-8 validation missing & String parser; runtime test & Fixed \\
+B-MOS3-01 & 46 & Eclipse Mosquitto / MQTT 3.1.1 & ClientId prefix rejection return-code inconsistency & Connect path; static review & Pending \\
+B-MOS3-02 & 102 & Eclipse Mosquitto / MQTT 3.1.1 & Packet identifier currently-unused check not fully verified & Packet state; static review & Pending \\
+B-MOS3-03 & 144 & Eclipse Mosquitto / MQTT 3.1.1 & Password length-limit construction inconsistency & Connect path; static review & Pending \\
+B-MOS3-04 & 211 & Eclipse Mosquitto / MQTT 3.1.1 & Bridge retain-as-published RETAIN-flag inconsistency & Publish path; static review & Pending \\
+B-MOS5-01 & 2 & Eclipse Mosquitto / MQTT 5.0 & Assigned client identifier lacks explicit collision check & Session state; static review & Pending \\
+B-MOS5-02 & 11 & Eclipse Mosquitto / MQTT 5.0 & AUTH remaining length 0 success packet rejected by client parser & Packet parser; runtime test & Pending \\
+B-MOS5-03 & 49 & Eclipse Mosquitto / MQTT 5.0 & Client session state not discarded after Session Present 0 & Session state; static review & Pending \\
+B-MOS5-04 & 118 & Eclipse Mosquitto / MQTT 5.0 & Receive Maximum disconnect reason-code mismatch & Property path; runtime test & Pending \\
+B-MOS5-05 & 119 & Eclipse Mosquitto / MQTT 5.0 & Fixed-header flags reason-code mismatch & Packet parser; runtime test & Pending \\
+B-MOS5-06 & 160 & Eclipse Mosquitto / MQTT 5.0 & Inbound maximum-packet-size disconnect missing & Property path; runtime test & Pending \\
+B-MOS5-07 & 216 & Eclipse Mosquitto / MQTT 5.0 & Broker packet identifier currently-unused check missing & Packet state; static review & Pending \\
+B-MOS5-08 & 387 & Eclipse Mosquitto / MQTT 5.0 & DISCONNECT reserved-bit reason-code mismatch & Packet parser; runtime test & Pending \\
+B-MOS5-09 & 607 & Eclipse Mosquitto / MQTT 5.0 & Forbidden subscription identifier allowed on client-to-server PUBLISH & Publish path; runtime test & Pending \\
+B-MOS5-10 & 654 & Eclipse Mosquitto / MQTT 5.0 & Topic Alias Maximum absence not fully enforced client-side & Topic alias state; runtime test & Pending \\
+B-MOS5-11 & 720 & Eclipse Mosquitto / MQTT 5.0 & Zero-length topic name uses the wrong disconnect reason & Publish path; runtime test & Pending \\
+B-MOS5-12 & 816 & Eclipse Mosquitto / MQTT 5.0 & Will QoS = 3 CONNECT classified as protocol error rather than malformed packet & Connect path; runtime test & Pending \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\clearpage
+
+\subsection{Open Science}
+
+Subject to responsible-disclosure constraints, the artifact package contains
+the implementation, prompts, extracted rules, result tables, and validation
+scripts. For vulnerability-triggering inputs that cannot be made public at
+publication time, the artifact states what is withheld, why it is withheld, and
+how reviewers can inspect it confidentially.

@@ -1,0 +1,19 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper introduced \tool, a framework for checking protocol implementations
+against natural-language standards through field-centric reasoning and
+test-based validation. The central idea is to use protocol fields as the
+semantic bridge between prose and code: standards are reduced to structured
+\ruleform{} rules, rules are aligned to implementation variables and contexts,
+and consistency judgments are made only after the evidence is sufficient or the
+remaining uncertainty is explicit. By combining constrained LLM reasoning,
+syntax-aware program analysis, and executable validation tests, \tool{} aims to
+make LLM-assisted conformance checking auditable and reproducible. Our
+evaluation produced 204 conformance-deviation reports across widely used
+protocol implementations. Maintainers have confirmed and fixed 126 of these
+reports, roughly nine were false positives, and 69 are still awaiting response
+or final adjudication; two confirmed issues became previously unknown CVEs. The
+average GPT-5.4 model cost is \$1.122 per submitted report, indicating that
+constrained LLM reasoning can be practical when paired with field-level
+specifications and reproducible validation artifacts.

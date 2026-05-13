@@ -1,0 +1,345 @@
+\section{Design Details}
+\label{sec:method}
+
+\subsection{Problem Definition}
+
+Given a protocol standard $S$ and an implementation $P$, \tool{} seeks to
+identify whether $P$ satisfies a set of normative field-level requirements in
+$S$. A requirement is represented as a rule
+$r=\langle C, f, A, M, \Pi\rangle$, where $C$ is the applicability condition,
+$f$ is the protocol field, $A$ is the expected action or constraint, $M$ is the
+normative modality such as \emph{MUST} or \emph{SHOULD}, and $\Pi$ records
+source provenance. The checker returns a tuple
+$\langle y,E,U,T\rangle$: label $y\in\{\textsc{Consistent},
+\textsc{Inconsistent},\textsc{Insufficient}\}$, evidence $E$, uncertainty notes
+$U$, and optional validation-test artifact $T$.
+
+\tool{} does not assume that the implementation uses names similar to the
+standard. It also does not require a pre-existing formal model. Instead, it
+builds a structured intermediate representation from the standard and aligns
+that representation to code using a combination of semantic and syntactic
+evidence.
+
+\subsection{Field-Space Construction}
+\label{sec:fieldspace}
+
+Directly extracting rules from open-ended prose is unstable because standards
+mix design motivation, compatibility advice, examples, and normative
+requirements. \tool{} therefore starts by constructing a \emph{field space}: a
+set of protocol objects that subsequent rules may reference. Field candidates
+are collected from message formats, extension structures, parameter tables, and
+explicit field-definition paragraphs. For each field, \tool{} records its
+canonical name, aliases, parent message or structure, type, allowed values when
+available, and source locations.
+
+The field space serves two purposes. First, it gives the extractor a closed set
+of referents, reducing the chance that descriptive concepts such as
+``compatibility mode'' are mistaken for checkable fields. Second, it preserves
+cross-document identity: the same field may appear as a full path, short name,
+structure member, or contextual pronoun. During rule extraction, all references
+must resolve to one or more field-space entries. Ambiguous references are kept
+as uncertainty rather than silently collapsed.
+
+\textbf{Field identity and validation.}
+\tool{} treats two mentions as the same field only when their parent context
+and semantic role are compatible, preventing generic names such as
+\emph{length}, \emph{type}, or \emph{flags} from being merged across unrelated
+messages. Before rule extraction, it also validates the field space by marking
+entries with missing parent context, incompatible aliases, or only weak prose
+evidence as ambiguous or out of scope. This conservative policy favors
+precision over recall because an incorrect field merge can mislead all
+downstream alignment and reasoning.
+
+\subsection{Field-Centric Rule Extraction}
+\label{sec:rules}
+
+After field-space construction, \tool{} extracts normative requirements as
+field-centric rules. The extraction prompt is constrained by the available field
+space and by a fixed schema. The model must identify the constrained field,
+condition, action, modality, source span, and any dependent fields. A
+deterministic checker then validates that the field appears in the field space,
+that the source span exists, and that the action belongs to a supported action
+family.
+
+\begin{table}[t]
+\centering
+\caption{Rule schema used by \tool.}
+\label{tab:ruleschema}
+\small
+\begin{tabular}{lp{0.68\columnwidth}}
+\toprule
+\textbf{Attribute} & \textbf{Description} \\
+\midrule
+Field & Constrained protocol field or parameter \\
+Condition & Message type, state, phase, or field predicate \\
+Action & Presence, value, derivation, relation, or rejection \\
+Modality & MUST, MUST NOT, SHOULD, MAY, or equivalent phrase \\
+Evidence & Source section, sentence span, and referenced text \\
+Dependencies & Other fields or states needed to evaluate the rule \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The action families are intentionally close to implementation behavior:
+\emph{assign}, \emph{derive}, \emph{select}, \emph{require-present},
+\emph{require-absent}, \emph{compare}, \emph{range-check},
+\emph{state-update}, and \emph{reject}. This design encourages a rule to map to
+observable code constructs such as assignments, conditionals, error returns, and
+state transitions. When a sentence contains multiple constraints, \tool{}
+atomizes it into multiple rules so that each rule can be aligned and tested
+independently.
+
+\textbf{Rule normalization.}
+Before alignment, rules are normalized to make equivalent requirements compare
+more consistently. Negated forms are rewritten into explicit actions, e.g.,
+``MUST NOT accept $x$'' becomes an expected \emph{reject} action under condition
+$x$. Cross-references are expanded when the referenced section contains a
+field-space entry. Multiple modalities in the same sentence are split into
+separate rules. The normalized rule remains linked to the original text so that
+reviewers can audit whether the transformation preserved the intended meaning.
+
+\textbf{Unsupported rules.}
+Some normative statements are intentionally not converted into field-level
+rules. Examples include broad performance guidance, implementation advice
+without observable behavior, and cryptographic assumptions that require a proof
+rather than code-level checking. \tool{} records these statements as
+\emph{out-of-scope normative text}. Reporting out-of-scope text is useful: it
+prevents silent loss of requirements and makes the method's coverage explicit.
+
+\subsection{Syntax-Aware Rule-to-Code Alignment}
+\label{sec:alignment}
+
+The alignment stage maps a rule $r$ to implementation variables and code
+contexts. It proceeds in three steps.
+
+\textbf{File ranking.}
+\tool{} uses an LLM-based ranker to score candidate files by their semantic
+relationship to the rule. The ranker sees the rule, field aliases, action
+family, and file-level summaries. It cannot introduce files outside the
+provided implementation. The top-ranked files are deduplicated and passed to
+localization.
+
+\textbf{Variable localization.}
+For the constrained field $f$, \tool{} generates aliases by splitting field
+tokens, normalizing case conventions, expanding common abbreviations, and
+including parent-structure names when available. It then constructs a symbol
+index using Tree-sitter~\cite{tree_sitter} and language-native parsers. Candidate identifiers are
+ranked by exact alias matches, token overlap, syntactic role, and proximity to
+rule-action terms. Identifiers that are too generic, appear only as loop
+variables, or lack a plausible syntactic relationship to the action are
+down-ranked.
+
+\textbf{Context retrieval.}
+For each candidate variable $v$, \tool{} retrieves code snippets from three
+sources: exact textual hits, symbol scopes containing the hits, and semantic
+windows whose tokens overlap the rule. Each snippet $c$ receives an evidence
+score:
+\begin{equation}
+\begin{aligned}
+S_{\mathrm{evidence}}(c)
+&=
+5 \cdot \mathbb{I}_{\mathrm{exact}}(c)
+ +0.9 \cdot |\mathcal{T}_c \cap \mathcal{T}_v|\\
+&\quad
+ +0.28 \cdot |\mathcal{T}_c \cap \mathcal{T}_r|
+ +b(c).
+\end{aligned}
+\end{equation}
+where $\mathbb{I}_{\mathrm{exact}}$ denotes exact variable or alias occurrence,
+$\mathcal{T}_c$ is the code-token set, $\mathcal{T}_v$ is the variable-token set,
+$\mathcal{T}_r$ is the rule-token set, and $b(c)$ rewards action-relevant usage
+patterns such as initialization, validation, comparison, error handling, and
+configuration reads. Snippets without exact variable evidence receive a score
+cap to avoid weak semantic matches dominating direct code evidence.
+
+The top snippets are then sent to an LLM semantic filter. The filter must choose
+the snippets most relevant to the rule, state the relationship between the
+snippet and the rule, and return a confidence score. If the model output is
+malformed or empty, \tool{} falls back to the deterministic ranking.
+
+The constants in Equation~(1) are intentionally simple rather than learned per
+project. The exact-match bonus gives priority to snippets that mention the
+localized field or one of its aliases; the variable-token term keeps renamed or
+split representations in the candidate set; the rule-token term is weaker
+because prose overlap alone often retrieves comments or unrelated helper
+functions. We tune the three constants once on held-out standard sections and
+keep them fixed across all evaluated protocols and implementations.
+
+\textbf{Why not pure retrieval?}
+Pure semantic retrieval often retrieves a function whose comments resemble the
+standard but whose variables are unrelated to the constrained field. Pure exact
+matching has the opposite problem: it misses implementations that rename fields
+or distribute a field across parser state and connection state. \tool{} uses
+syntax evidence as the meeting point. A snippet is strongest when it both
+mentions a plausible representation of the field and uses that representation
+in a role consistent with the rule action.
+
+\subsection{Evidence-Driven Consistency Reasoning}
+\label{sec:reasoning}
+
+Once candidate contexts are available, \tool{} asks a reasoning agent to decide
+whether the implementation satisfies the rule. The input contains the rule,
+source provenance, selected snippets, call relationships discovered from the
+symbol index, configuration conditions, and a compact trace of how the variable
+was localized. The agent must produce a structured answer with a label,
+supporting evidence, assumptions, missing evidence, and a short defect
+hypothesis when applicable.
+
+\begin{algorithm}[t]
+\small
+\DontPrintSemicolon
+\KwIn{Rule $r$, implementation index $I$, maximum rounds $K$}
+\KwOut{Consistency report}
+$C_0 \leftarrow$ AlignRuleToCode$(r,I)$\;
+\For{$i \leftarrow 0$ \KwTo $K$}{
+  $o_i \leftarrow$ Reason$(r,C_i)$\;
+  \If{$o_i.label \neq \textsc{Insufficient}$}{
+    \Return $o_i$\;
+  }
+  $q_i \leftarrow$ MissingEvidenceQuery$(o_i)$\;
+  $C_{i+1} \leftarrow C_i \cup$ RetrieveAdditionalContext$(q_i,I)$\;
+  \If{$C_{i+1}=C_i$}{
+    \Return $o_i$\;
+  }
+}
+\Return $o_K$\;
+\caption{Evidence-driven consistency reasoning.}
+\label{alg:reasoning}
+\end{algorithm}
+
+Algorithm~\ref{alg:reasoning} shows the loop. The key design choice is to make
+\textsc{Insufficient} a valid and useful outcome. If the current evidence lacks
+a caller, macro, configuration option, or error path, the agent should not force
+a binary judgment. Instead, it emits a missing-evidence query that triggers
+another retrieval round. The loop stops when the agent reaches a determinate
+label, no new evidence can be retrieved, or a maximum number of rounds is
+reached.
+
+\textbf{Evidence requests.}
+Missing-evidence requests are typed. The current prototype supports requests
+for callers, callees, macro definitions, configuration guards, field
+assignments, validation checks, error constructors, state updates, and test
+entry points. Typed requests make the loop less open-ended: a request for
+``more code'' is rejected, while a request for ``the callers of
+\texttt{parse\_transport\_parameter} that inspect its return value'' can be
+served by the code indexer.
+
+\textbf{Judgment policy.}
+The reasoner may return \textsc{Inconsistent} only when it can point to both a
+normative obligation and implementation behavior that contradicts the
+obligation. Absence of evidence is not sufficient unless the search has covered
+the relevant parser, validator, caller, and configuration paths specified by
+the rule. This policy is conservative, but it is necessary for a system whose
+reports are meant to be actionable for maintainers.
+
+\subsection{Validation-Test Agent}
+\label{sec:testagent}
+
+Static reasoning can still be wrong: a missing branch may be enforced by a
+caller, or an apparent check may be compiled out. \tool{} therefore validates
+high-risk reports using generated tests. The test agent receives the rule, the
+defect hypothesis, relevant snippets, build instructions, and any existing test
+interfaces. It produces a test plan that attempts to construct one of two
+counterexamples: an input that violates the standard but is accepted, or an
+input that satisfies the standard but is rejected.
+
+The agent then prepares the environment, selects build options, generates or
+adapts a harness, executes the test, and collects logs. A report is confirmed
+only when the observed behavior is stable and contradicts the field rule. If the
+test cannot reach the relevant path, \tool{} records the unmet validation
+conditions rather than upgrading the static hypothesis into a confirmed issue.
+This conservative policy is important for reviewability: every reported
+confirmed inconsistency is tied to either executable evidence or a clearly
+marked manual reproduction plan.
+
+\textbf{Oracle construction.}
+The validation oracle is derived from the field rule, not from an existing
+implementation. For a rejection rule, the oracle checks whether the target
+returns the required error, closes the connection, or otherwise refuses the
+input. For a presence or value rule, the oracle checks emitted messages,
+configuration state, or parser outputs when those are observable. When the
+expected behavior is not directly observable, \tool{} records the test as
+inconclusive rather than inferring correctness from the absence of a crash.
+
+\subsection{Implementation}
+\label{sec:implementation}
+
+We implemented \tool{} as a modular analysis pipeline. The current prototype
+contains four components: a standard parser, a code indexer, an LLM orchestration
+layer, and a validation-test runner. This section describes implementation
+choices that affect reproducibility and engineering trade-offs.
+
+\textbf{Standard processing.}
+The standard parser ingests RFC-style text, markdown, HTML, or converted PDF
+text. It segments documents by section, preserves sentence offsets, and detects
+normative keywords using a conservative lexicon derived from RFC 2119-style
+language. Field candidates are extracted from message diagrams, bullet lists,
+tables, and definitional paragraphs. When a field candidate is ambiguous, the
+parser retains all candidates and asks the extraction stage to resolve the
+reference against local context.
+
+\textbf{Code indexing.}
+The code indexer supports C, C++, Rust, and Python in the prototype. It uses
+Tree-sitter for a uniform symbol index and language-native parsers where
+available for richer scope information. Each indexed symbol records its file,
+scope, declaration span, use spans, surrounding comments, and enclosing
+function or type. The indexer also extracts a lightweight call graph from direct
+calls and function-pointer-like patterns when they are syntactically visible.
+
+\textbf{LLM orchestration.}
+LLM calls are isolated behind typed prompts with JSON-like output schemas. The
+pipeline uses low-temperature decoding for extraction, alignment, and
+reasoning. Every LLM output passes through a deterministic validator that checks
+schema validity, source-span existence, identifier presence, duplicate entries,
+and label membership. Invalid outputs are retried with a compact repair prompt;
+after the retry budget is exhausted, \tool{} falls back to deterministic
+rankings or marks the sample as insufficient evidence.
+
+\textbf{Prompt boundaries.}
+The prompts are intentionally narrow. The extractor sees a section and the
+field space, not the whole standard. The aligner sees a rule and ranked code
+snippets, not the whole repository. The reasoner sees the evidence bundle and
+must cite snippet identifiers rather than free-form code claims. This design
+keeps token cost manageable and makes the output auditable.
+
+\textbf{Validation runner.}
+The validation runner currently supports three modes: extending an existing
+unit test, creating a small harness around a parser or validation function, and
+driving a command-line implementation with generated inputs. The runner records
+compiler options, environment variables, command lines, exit status, stdout,
+stderr, and relevant logs. If the target cannot be built or the path cannot be
+reached, the sample is not counted as confirmed.
+
+\textbf{Parameters.}
+Unless otherwise stated, the prototype keeps the top 8 files after file
+ranking, the top 20 variable candidates per rule, and the top 12 snippets per
+reasoning round. The maximum number of evidence-completion rounds is three. The
+validation agent receives at most two attempts per hypothesis before reporting
+unmet validation conditions. We tune these parameters on held-out protocol
+sections and keep them fixed for all evaluated implementations.
+
+\textbf{Caching and determinism.}
+To make repeated runs auditable, \tool{} stores every prompt, response,
+validator decision, and retrieved code bundle under a content hash. When the
+same rule and repository snapshot are analyzed again, deterministic stages are
+reused and LLM stages can be replayed from cache. The cache is also useful for
+manual inspection: a reviewer can open a report and see the exact evidence
+available to the reasoner at each round.
+
+\textbf{Failure handling.}
+The implementation distinguishes recoverable and terminal failures. Recoverable
+failures include malformed model output, missing optional build metadata, or a
+snippet that cannot be parsed by one parser but can still be indexed by
+Tree-sitter. Terminal failures include missing source files, standards that
+cannot be segmented, or implementations that cannot expose any parse or
+validation entry point. Terminal failures are reported as coverage gaps rather
+than silently omitted from aggregate metrics.
+
+\textbf{Manual review interface.}
+Although \tool{} is designed for automation, the prototype emits a compact
+review bundle for each candidate. The bundle contains the source text, the
+normalized rule, ranked variables, selected snippets, reasoning transcript,
+validation commands, and final label. This interface is important for building
+ground truth: protocol experts and maintainers can correct a rule, mark an
+implementation-specific exception, or confirm that a test demonstrates a real
+deviation.

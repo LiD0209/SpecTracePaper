@@ -1,0 +1,91 @@
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+\textbf{Scope of field-centric rules.}
+\tool{} is designed for requirements that can be grounded in protocol fields,
+their conditions, and their implementation behavior. This scope includes many
+parser, validation, negotiation, and error-handling rules. It does not replace
+cryptographic proofs, full state-machine verification, or temporal reasoning
+over unbounded sessions. Some cross-session properties may be approximated by
+field rules, but they require a separate formal treatment before strong claims
+can be made.
+
+\textbf{Natural-language ambiguity.}
+Standards contain optional behavior, informative examples, and modal verbs with
+different force. \tool{} records modality and provenance, but final judgment may
+still require expert interpretation for \emph{SHOULD}, \emph{MAY}, or
+implementation-defined behavior. Our artifact therefore exposes the source span
+and rationale for each rule rather than reporting a bare bug label.
+
+\textbf{LLM dependence.}
+\tool{} uses LLMs for extraction, ranking, semantic filtering, reasoning, and
+test planning. The framework constrains these calls with schemas, field spaces,
+syntax evidence, and deterministic validators, but it does not eliminate model
+error. We mitigate this risk by retaining uncertainty, using low-temperature
+decoding, validating outputs, comparing multiple models in the evaluation, and
+requiring executable evidence for confirmed reports.
+
+\textbf{Test generation is incomplete.}
+The validation agent cannot guarantee path coverage. A failed test attempt may
+reflect a missing harness, hidden deployment condition, or incomplete
+environment rather than absence of a defect. \tool{} therefore treats unreached
+paths as unresolved evidence, not as false positives or true negatives.
+
+\textbf{Closed-source and generated implementations.}
+The prototype assumes source access and at least partial parser support. Closed
+implementations, heavily generated code, and macro-heavy systems reduce the
+quality of symbol indexing and call-graph recovery. Black-box testing can
+partially compensate, but specification-to-variable alignment becomes weaker.
+
+\textbf{Ground truth.}
+Protocol conformance is not always a binary property. Some standards are
+ambiguous, some implementations intentionally deviate for compatibility, and
+some rules describe recommendations rather than obligations. We therefore use a
+state-based adjudication protocol: reports are submitted, confirmed/fixed,
+rejected as false positives, or kept pending until maintainer feedback,
+independent review, or reproducible tests provide enough evidence. This protocol
+supports adjudicated precision but not a whole-corpus recall claim.
+
+\textbf{Cost and scalability.}
+Multi-round reasoning and validation are more expensive than one-shot
+prompting. \tool{} reduces cost by caching standard extraction, limiting code
+contexts before LLM calls, and invoking validation only for suspicious or
+unresolved samples. Still, deployment on very large protocol ecosystems
+may require prioritization. One practical strategy is to rank rules by modality,
+security relevance, and historical bug density, then validate high-risk rules
+first.
+
+\textbf{Threats to validity.}
+Our evaluation has three main threats. First, benchmark selection may
+overrepresent well-structured open-source implementations and underrepresent
+closed or generated systems. Second, manually labeled ground truth may reflect
+reviewer interpretation of ambiguous standards. Third, LLM nondeterminism can
+change extraction or reasoning outcomes across runs. We mitigate these threats
+by reporting subject-selection criteria, using two-author adjudication,
+preserving raw evidence, separating pending reports from confirmed fixes, and
+measuring variance across repeated GPT-5.4 runs and model families.
+
+\textbf{What would make a report actionable?}
+Maintainers are unlikely to act on a vague statement that code and standard
+``seem inconsistent.'' A useful report should include the exact standard span,
+the normalized rule, the relevant field and implementation variable, the code
+path that accepts or rejects the input, the build configuration, and a minimal
+reproduction script. \tool{} emits this bundle and stores it under a content
+hash so that reviewers can inspect the evidence without rerunning the full
+pipeline.
+
+\textbf{Generalization beyond protocols.}
+The field-centric idea may transfer to other domains where natural-language
+documents define structured objects, such as file formats, API contracts, or
+hardware specifications. The representation would need different object spaces:
+API parameters instead of protocol fields, register bits instead of message
+fields, or configuration keys instead of transport parameters. This paper
+focuses on network protocols because their standards and implementations make
+the alignment problem both important and concrete.
+
+\textbf{Ethical considerations.}
+\tool{} may discover implementation deviations in deployed security protocols.
+We disclosed confirmed security-relevant findings to maintainers before
+publication. The public artifact avoids publishing exploit-ready inputs for
+unpatched vulnerabilities while still providing enough artifact detail for
+reviewers to validate the claims under confidentiality constraints.
