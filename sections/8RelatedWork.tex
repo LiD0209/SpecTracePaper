@@ -8,9 +8,17 @@ approaches are valuable because they produce executable evidence, but they
 often cover only known behaviors and rarely maintain an explicit link between a
 test and the normative sentence it checks. \tool{} complements conformance
 testing by deriving tests from field-centric rules and by preserving the
-standard-to-code trace for each report. Prior TLS-focused systems show how
-state-machine learning and adversarial test generation can expose deep
-implementation deviations~\cite{de2015protocol,fiterau2020dtls,fiterau2023automata,beurdouche2015messy,somorovsky2016tlsattacker,maehren2022tlsanvil,brubaker2014frankencert,chen2015guided,chen2018rfc,chen2017hvlearn,chau2017symcerts}.
+standard-to-code trace for each report. Protocol state fuzzing learns TLS and
+DTLS implementation automata and exposes deviations in deployed
+stacks~\cite{de2015protocol,fiterau2020dtls}. Automata-based bug detection and
+analyses of composite TLS state machines further show how protocol state
+structure creates conformance risk~\cite{fiterau2023automata,beurdouche2015messy}.
+Adversarial and combinatorial TLS testing frameworks further show how targeted
+message generation can reveal library-specific behavior~\cite{somorovsky2016tlsattacker,maehren2022tlsanvil}.
+Certificate-validation studies use generated, differential, and RFC-directed
+inputs to find noncompliance in SSL/TLS implementations~\cite{brubaker2014frankencert,chen2015guided,chen2018rfc},
+while hostname-verification and symbolic certificate analyses focus on
+different slices of the same conformance problem~\cite{chen2017hvlearn,chau2017symcerts}.
 
 An important difference is the direction of generation. Traditional conformance
 suites are usually written by protocol experts who decide which cases are worth
@@ -27,9 +35,11 @@ maintaining such models from natural-language standards and production code.
 \tool{} does not attempt to prove whole-protocol correctness. Instead, it
 extracts lightweight field-level rules that can be aligned to code and checked
 with a combination of static evidence and tests. This positioning is
-complementary to verified and symbolic analyses of TLS and security protocols,
-including miTLS, ProVerif, Tamarin, AVISPA, and symbolic TLS 1.3
-models~\cite{bhargavan2013mitls,blanchet2016proverif,meier2013tamarin,armando2005avispa,cremers2017tls13}.
+complementary to verified TLS implementations such as
+miTLS~\cite{bhargavan2013mitls}. It also complements general symbolic
+verification frameworks, including ProVerif, Tamarin, and
+AVISPA~\cite{blanchet2016proverif,meier2013tamarin,armando2005avispa}, as
+well as symbolic analyses specialized to TLS 1.3~\cite{cremers2017tls13}.
 
 This trade-off is deliberate. Full formalization provides stronger guarantees,
 but it is rarely available for every implementation version and every extension.
@@ -37,18 +47,26 @@ Field-level rules are weaker but easier to derive, easier to inspect, and close
 to the code locations where many implementation mistakes occur.
 
 \textbf{Static analysis and fuzzing.}
-Static analysis and software model checking can find missing checks, unsafe
-data flows, and inconsistent error handling in large systems and security
-code~\cite{engler2001checking,engler2001bugs,musuvathi2004cmc,livshits2005finding,bessey2010few}.
-Fuzzing can expose crashes and
-behavioral anomalies through generated inputs~\cite{godefroid2008grammar,godefroid2008sage,cho2011mace,bohme2016aflfast,lemieux2018fairfuzz,pham2020aflnet,natella2022stateafl,manes2021fuzzing,petsios2017nezha}.
-Benchmarks and stateful fuzzers further show the importance of preserving
-protocol state while exploring message sequences~\cite{natella2021profuzzbench,ba2022stateful}.
-However, both techniques usually
-require either code-level specifications or manually written oracles to decide
-whether an implementation violates a standard. \tool{} uses field-centric rules
-as specification-derived oracles and uses static analysis to ground LLM
-reasoning in real code structure.
+Static analysis can find missing checks, unsafe data flows, and inconsistent
+error handling through system-specific checkers and bug-pattern
+inference~\cite{engler2001checking,engler2001bugs}. Software model checking
+extends this style of reasoning to executable code paths~\cite{musuvathi2004cmc},
+and security-oriented static analysis has scaled to both application code and
+large deployed codebases~\cite{livshits2005finding,bessey2010few}. Fuzzing
+exposes crashes and behavioral anomalies by generating structured or symbolic
+inputs~\cite{godefroid2008grammar,godefroid2008sage,cho2011mace}, while
+coverage-guided and targeted fuzzers improve exploration under finite
+budgets~\cite{bohme2016aflfast,lemieux2018fairfuzz}. Protocol fuzzers adapt
+these ideas to network implementations and stateful servers~\cite{pham2020aflnet,natella2022stateafl}.
+Benchmarks and stateful greybox fuzzers further show the importance of
+preserving protocol state while exploring message sequences~\cite{natella2021profuzzbench,ba2022stateful}.
+Differential fuzzing provides another way to expose behavioral divergence
+across implementations~\cite{petsios2017nezha}, and fuzzing surveys place
+these techniques in a broader testing landscape~\cite{manes2021fuzzing}.
+However, both techniques usually require either code-level specifications or
+manually written oracles to decide whether an implementation violates a
+standard. \tool{} uses field-centric rules as specification-derived oracles and
+uses static analysis to ground LLM reasoning in real code structure.
 
 The closest fuzzing systems infer message grammars or state machines and then
 exercise implementations aggressively. \tool{} can use such generators as a
@@ -58,11 +76,21 @@ not merely because it explores a new path.
 
 \textbf{Specification mining and traceability.}
 Prior work on specification mining infers likely rules from code, logs, tests,
-or documentation. Requirements traceability links natural-language requirements
-to source-code artifacts. \tool{} shares the goal of connecting text and code
-but focuses on protocol standards, where fields provide a natural semantic
-anchor and where conformance claims require both normative provenance and
-behavioral evidence~\cite{ernst2001dynamically,engler2001bugs,engler2001checking,antoniol2002recovering,marcus2003recovering,hayes2006advancing,clelandhuang2014software,guo2017semantically,pacheco2022automated}.
+or documentation. Dynamic invariant detection recovers behavioral properties
+from executions~\cite{ernst2001dynamically}, while system-specific checkers and
+deviant-behavior analyses infer likely rules from implementation
+patterns~\cite{engler2001bugs,engler2001checking}. Requirements traceability
+links natural-language requirements to source-code artifacts using information
+retrieval and latent semantic indexing~\cite{antoniol2002recovering,marcus2003recovering}.
+Candidate-link generation and broader traceability frameworks study how such
+links should be produced, evaluated, and maintained~\cite{hayes2006advancing,clelandhuang2014software}.
+More recent traceability work adds semantic representations for linking
+requirements and code~\cite{guo2017semantically}, and protocol-specific
+specification mining can extract finite-state models from standards
+documents~\cite{pacheco2022automated}. \tool{} shares the goal of connecting
+text and code but focuses on protocol standards, where fields provide a natural
+semantic anchor and where conformance claims require both normative provenance
+and behavioral evidence.
 
 Unlike general traceability, a wrong link in this setting can become a false
 vulnerability report. \tool{} therefore keeps provenance, confidence, and
@@ -77,7 +105,12 @@ identifier mapping, hidden context, and runtime behavior at once. \tool{}
 separates these concerns: it constrains extraction with a field space, narrows
 code evidence with syntax-aware retrieval, requires structured uncertainty, and
 validates suspicious claims with tests. Our use of LLMs builds on code-focused
-pretraining and program synthesis work~\cite{feng2020codebert,guo2021graphcodebert,chen2021codex,austin2021program,nijkamp2023codegen,li2023starcoder}.
+pretraining for joint program and natural-language
+representations~\cite{feng2020codebert,guo2021graphcodebert}. It also draws
+on program-synthesis work showing that large models can generate programs from
+natural-language intent~\cite{chen2021codex,austin2021program}. Open
+code-generation models further demonstrate this capability at larger scale and
+across multi-turn settings~\cite{nijkamp2023codegen,li2023starcoder}.
 
 This design also differs from LLM bug-finding tools that optimize for broad
 coverage of likely defects. \tool{} optimizes for defensible conformance claims:
@@ -89,6 +122,7 @@ Recent systems use agents to iteratively inspect repositories, run tools, and
 generate tests. \tool{} is an instance of this broader direction, but its agent
 loop is specialized around protocol conformance: missing evidence is expressed
 as a request for implementation context relevant to a specific field rule, and
-test generation is guided by counterexamples to a normative requirement. This
-design is related to reasoning-and-acting and self-improvement loops for
-language agents~\cite{yao2023react,shinn2023reflexion,madaan2023selfrefine}.
+test generation is guided by counterexamples to a normative requirement.
+ReAct-style agents interleave reasoning with external actions~\cite{yao2023react},
+while Reflexion and Self-Refine illustrate feedback loops that revise an
+agent's behavior or outputs across iterations~\cite{shinn2023reflexion,madaan2023selfrefine}.

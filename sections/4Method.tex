@@ -113,9 +113,9 @@ The alignment stage maps a rule $r$ to implementation variables and code
 contexts. It proceeds in three steps.
 
 \textbf{File ranking.}
-\tool{} uses an LLM-based ranker to score candidate files by their semantic
-relationship to the rule. The ranker sees the rule, field aliases, action
-family, and file-level summaries. It cannot introduce files outside the
+\tool{} uses an LLM-based ranker to score candidate C/C++ files by their
+semantic relationship to the rule. The ranker sees the rule, field aliases,
+action family, and file-level summaries. It cannot introduce files outside the
 provided implementation. The top-ranked files are deduplicated and passed to
 localization.
 
@@ -123,8 +123,9 @@ localization.
 For the constrained field $f$, \tool{} generates aliases by splitting field
 tokens, normalizing case conventions, expanding common abbreviations, and
 including parent-structure names when available. It then constructs a symbol
-index using Tree-sitter~\cite{tree_sitter} and language-native parsers. Candidate identifiers are
-ranked by exact alias matches, token overlap, syntactic role, and proximity to
+index using Tree-sitter~\cite{tree_sitter} with C/C++ grammars and
+compiler-aware parsing where available. Candidate identifiers are ranked by
+exact alias matches, token overlap, syntactic role, and proximity to
 rule-action terms. Identifiers that are too generic, appear only as loop
 variables, or lack a plausible syntactic relationship to the action are
 down-ranked.
@@ -181,19 +182,19 @@ Once candidate contexts are available, \tool{} asks a reasoning agent to decide
 whether the implementation satisfies the rule. The input contains the rule,
 source provenance, selected snippets, call relationships discovered from the
 symbol index, configuration conditions, and a compact trace of how the variable
-was localized. The agent must produce a structured answer with a label,
-supporting evidence, assumptions, missing evidence, and a short defect
+was localized. The agent must produce a structured decision record with a
+label, supporting evidence, assumptions, missing evidence, and a short defect
 hypothesis when applicable.
 
 \begin{algorithm}[t]
 \small
 \DontPrintSemicolon
 \KwIn{Rule $r$, implementation index $I$, maximum rounds $K$}
-\KwOut{Consistency report}
+\KwOut{Consistency decision record}
 $C_0 \leftarrow$ AlignRuleToCode$(r,I)$\;
 \For{$i \leftarrow 0$ \KwTo $K$}{
   $o_i \leftarrow$ Reason$(r,C_i)$\;
-  \If{$o_i.label \neq \textsc{Insufficient}$}{
+  \If{$o_i.label \neq \mathrm{Insufficient}$}{
     \Return $o_i$\;
   }
   $q_i \leftarrow$ MissingEvidenceQuery$(o_i)$\;
@@ -270,8 +271,8 @@ layer, and a validation-test runner. This section describes implementation
 choices that affect reproducibility and engineering trade-offs.
 
 \textbf{Standard processing.}
-The standard parser ingests RFC-style text, markdown, HTML, or converted PDF
-text. It segments documents by section, preserves sentence offsets, and detects
+The standard parser ingests RFC-style text, markdown, or converted PDF text. It
+segments documents by section, preserves sentence offsets, and detects
 normative keywords using a conservative lexicon derived from RFC 2119-style
 language. Field candidates are extracted from message diagrams, bullet lists,
 tables, and definitional paragraphs. When a field candidate is ambiguous, the
@@ -279,8 +280,8 @@ parser retains all candidates and asks the extraction stage to resolve the
 reference against local context.
 
 \textbf{Code indexing.}
-The code indexer supports C, C++, Rust, and Python in the prototype. It uses
-Tree-sitter for a uniform symbol index and language-native parsers where
+The code indexer supports C and C++ in the prototype. It uses Tree-sitter with
+C/C++ grammars for a uniform symbol index and compiler-aware parsing where
 available for richer scope information. Each indexed symbol records its file,
 scope, declaration span, use spans, surrounding comments, and enclosing
 function or type. The indexer also extracts a lightweight call graph from direct

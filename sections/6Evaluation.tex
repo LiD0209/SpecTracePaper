@@ -26,8 +26,11 @@ rules extracted from RFC 8446, and the two QUIC implementations are checked
 against the same 286 rules extracted from RFC 9000. This avoids accidentally
 crediting \tool{} with more or fewer opportunities simply because an
 implementation is easier to analyze.
-The subjects include widely deployed TLS, QUIC, MQTT, and CoAP stacks and
-libraries~\cite{openssl,wolfssl,mbedtls,boringssl,quiche,ngtcp2,mosquitto,wolfmqtt,libcoap}.
+The TLS/DTLS subjects include OpenSSL~\cite{openssl},
+wolfSSL~\cite{wolfssl}, Mbed TLS~\cite{mbedtls}, openHiTLS, and
+BoringSSL~\cite{boringssl}. The QUIC subjects are quiche~\cite{quiche} and
+ngtcp2~\cite{ngtcp2}; the MQTT subjects are Mosquitto~\cite{mosquitto} and
+wolfMQTT~\cite{wolfmqtt}; and the CoAP subject is libcoap~\cite{libcoap}.
 
 \begin{table}[t]
 \centering

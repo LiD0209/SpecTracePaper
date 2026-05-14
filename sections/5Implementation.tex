@@ -7,8 +7,8 @@ layer, and a validation-test runner. This section describes implementation
 choices that affect reproducibility and engineering trade-offs.
 
 \textbf{Standard processing.}
-The standard parser ingests RFC-style text, markdown, HTML, or converted PDF
-text. It segments documents by section, preserves sentence offsets, and detects
+The standard parser ingests RFC-style text, markdown, or converted PDF text. It
+segments documents by section, preserves sentence offsets, and detects
 normative keywords using a conservative lexicon derived from RFC 2119-style
 language. Field candidates are extracted from message diagrams, bullet lists,
 tables, and definitional paragraphs. When a field candidate is ambiguous, the
@@ -16,8 +16,8 @@ parser retains all candidates and asks the extraction stage to resolve the
 reference against local context.
 
 \textbf{Code indexing.}
-The code indexer supports C, C++, Rust, and Python in the prototype. It uses
-Tree-sitter for a uniform symbol index and language-native parsers where
+The code indexer supports C and C++ in the prototype. It uses Tree-sitter with
+C/C++ grammars for a uniform symbol index and compiler-aware parsing where
 available for richer scope information. Each indexed symbol records its file,
 scope, declaration span, use spans, surrounding comments, and enclosing
 function or type. The indexer also extracts a lightweight call graph from direct
