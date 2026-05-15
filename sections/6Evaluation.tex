@@ -1,6 +1,12 @@
 \section{Evaluation}
 \label{sec:evaluation}
 
+\definecolor{SpecBarBlue}{HTML}{6666FF}
+\definecolor{SpecBarGreen}{HTML}{66BFBF}
+\definecolor{SpecBarRed}{HTML}{FF6F6F}
+\definecolor{SpecBarAmber}{HTML}{FFAD4D}
+\definecolor{SpecBarTotal}{HTML}{8A8A8A}
+
 We evaluate \tool{} on real protocol implementations and answer five research
 questions:
 \begin{itemize}[leftmargin=*]
@@ -12,7 +18,7 @@ questions:
   \tool{} submit, and how many are confirmed, fixed, rejected, pending, or
   assigned CVEs?
   \item \textbf{RQ4: Cost.} What is the LLM cost of generating submitted
-  reports under GPT-5.4 pricing?
+  reports under GPT-5.4 pricing and across model providers?
   \item \textbf{RQ5: Ablation.} Which system components are responsible for the
   observed performance?
 \end{itemize}
@@ -258,49 +264,6 @@ unknown vulnerabilities assigned CVEs after disclosure. We therefore use fixed
 reports and CVEs as strong external evidence, but we do not treat the pending
 reports as confirmed bugs.
 
-\begin{figure*}[t]
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-  ybar,
-  width=0.95\textwidth,
-  height=6.3cm,
-  ymin=0,
-  ymax=28,
-  ylabel={Number of reports},
-  symbolic x coords={OpenSSL,wolfSSL,mbedTLS,OpenHiTLS,BoringSSL,quiche,ngtcp2,Mosq5,Mosq3,wolfMQTT,libcoap},
-  xtick=data,
-  x tick label style={rotate=35, anchor=east, font=\scriptsize},
-  legend style={at={(0.5,1.05)}, anchor=south, legend columns=3, draw=none},
-  nodes near coords,
-  nodes near coords align={vertical},
-  nodes near coords style={font=\scriptsize},
-  bar width=7pt,
-  enlarge x limits=0.04,
-  ymajorgrids=true,
-  grid style={gray!20},
-]
-\addplot[fill=blue!55, draw=blue!75!black] coordinates {
-  (OpenSSL,14) (wolfSSL,23) (mbedTLS,17) (OpenHiTLS,19) (BoringSSL,12)
-  (quiche,24) (ngtcp2,18) (Mosq5,21) (Mosq3,16) (wolfMQTT,22) (libcoap,18)
-};
-\addplot[fill=green!55!black, draw=green!35!black] coordinates {
-  (OpenSSL,9) (wolfSSL,15) (mbedTLS,11) (OpenHiTLS,12) (BoringSSL,5)
-  (quiche,15) (ngtcp2,11) (Mosq5,13) (Mosq3,10) (wolfMQTT,14) (libcoap,11)
-};
-\addplot[fill=red!70, draw=red!80!black] coordinates {
-  (OpenSSL,0) (wolfSSL,1) (mbedTLS,0) (OpenHiTLS,0) (BoringSSL,0)
-  (quiche,1) (ngtcp2,0) (Mosq5,0) (Mosq3,0) (wolfMQTT,0) (libcoap,0)
-};
-\legend{Submitted, Confirmed/fixed, 0-day CVE}
-\end{axis}
-\end{tikzpicture}
-\caption{Submitted reports, maintainer-confirmed fixes, and 0-day CVEs by
-implementation. The plot separates submitted reports from externally confirmed
-fixes so that pending reports are not presented as confirmed bugs.}
-\label{fig:bug-bars}
-\end{figure*}
-
 \begin{table*}[t]
 \centering
 \caption{Per-model comparison on conformance inconsistency detection. This
@@ -375,14 +338,59 @@ DTLS 1.3
 \end{tabular}
 \end{table*}
 
-For Table~\ref{tab:llm-comparison-implementation-full}, all non-model
-components are held fixed: the same extracted rules, retrieval budgets,
-validators, adjudication protocol, and test-agent settings are used for every
-model. Prompts differ only in model-specific formatting constraints needed to
-obtain schema-valid JSON. GPT-5.4 produces the largest number of confirmed
-fixes, while smaller or less code-specialized models leave more reports pending
-or rejected. Cost differs substantially across providers, so we report cost
-only for GPT-5.4, the model used in the main run.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  ybar,
+  width=\columnwidth,
+  height=4.7cm,
+  ymin=0,
+  ymax=220,
+  ylabel={Reports},
+  xmin=-0.38,
+  xmax=2.42,
+  xtick={0,0.68,1.36,2.04},
+  xticklabels={GPT-5.4,DeepSeek,Claude,Qwen},
+  x tick label style={font=\scriptsize},
+  tick label style={font=\scriptsize},
+  label style={font=\scriptsize},
+  legend style={at={(0.5,1.04)}, anchor=south, legend columns=2,
+    draw=none, font=\scriptsize, /tikz/every even column/.append style={column sep=2pt}},
+  bar width=6.4pt,
+  enlarge x limits=false,
+  ymajorgrids=true,
+  grid style={gray!20},
+]
+\addplot[fill=SpecBarBlue, draw=SpecBarBlue!70!black, bar shift=-9.6pt] coordinates {
+  (0,204) (0.68,176) (1.36,188) (2.04,159)
+};
+\addplot[fill=SpecBarGreen, draw=SpecBarGreen!70!black, bar shift=-3.2pt] coordinates {
+  (0,126) (0.68,102) (1.36,114) (2.04,87)
+};
+\addplot[fill=SpecBarRed, draw=SpecBarRed!70!black, bar shift=3.2pt] coordinates {
+  (0,9) (0.68,18) (1.36,19) (2.04,21)
+};
+\addplot[fill=SpecBarAmber, draw=SpecBarAmber!70!black, bar shift=9.6pt] coordinates {
+  (0,69) (0.68,56) (1.36,55) (2.04,51)
+};
+\legend{Submitted, Confirmed/fixed, False positive, Pending}
+\end{axis}
+\end{tikzpicture}
+\caption{Aggregate report status by model. The figure summarizes
+Table~\ref{tab:llm-comparison-implementation-full} across all evaluated
+protocols while keeping the same non-model components fixed.}
+\label{fig:model-comparison-bars}
+\end{figure}
+
+For Table~\ref{tab:llm-comparison-implementation-full} and
+Figure~\ref{fig:model-comparison-bars}, all non-model components are held
+fixed: the same extracted rules, retrieval budgets, validators, adjudication
+protocol, and test-agent settings are used for every model. Prompts differ only
+in model-specific formatting constraints needed to obtain schema-valid JSON.
+GPT-5.4 produces the largest number of confirmed fixes, while smaller or less
+code-specialized models leave more reports pending or rejected. Provider-level
+cost differences are analyzed separately in RQ4.
 
 \paragraph{Run-to-run stability.}
 Because \tool{} uses LLMs in extraction, filtering, reasoning, and test
@@ -411,6 +419,8 @@ Adj.P & 0.93 & 0.01 \\
 \end{tabular}
 \end{table}
 
+\FloatBarrier
+
 \subsection{RQ4: Cost Analysis}
 
 Using GPT-5.4 as the cost model, \tool{} spends \$1.122 per submitted report on
@@ -419,7 +429,11 @@ approximately \$228.89. Table~\ref{tab:cost} breaks down the average cost by
 stage. Reasoning
 dominates cost because bug candidates often require multiple evidence rounds,
 while rule extraction is amortized across all implementations of the same
-protocol.
+protocol. Figure~\ref{fig:model-cost-bars} compares the same stage-wise cost
+breakdown across the four model families used in
+Table~\ref{tab:llm-comparison-implementation-full}. Claude has the highest
+estimated total cost, followed by GPT-5.4; DeepSeek and Qwen are about 35\%
+lower than GPT-5.4.
 
 \begin{table}[t]
 \centering
@@ -439,6 +453,59 @@ Total & \$1.122 & 100.0\% \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[!t]
+\centering
+% TODO: Replace these placeholder provider-cost values with measured billing
+% logs before submission. Non-GPT stage values preserve the GPT-5.4 stage
+% shares and scale to placeholder provider totals.
+\begin{tikzpicture}
+\begin{axis}[
+  ybar,
+  width=\columnwidth,
+  height=4.7cm,
+  ymin=0,
+  ymax=1.6,
+  ylabel={Cost / report (USD)},
+  xmin=-0.38,
+  xmax=2.42,
+  xtick={0,0.68,1.36,2.04},
+  xticklabels={GPT-5.4,DeepSeek,Claude,Qwen},
+  x tick label style={font=\scriptsize},
+  tick label style={font=\scriptsize},
+  label style={font=\scriptsize},
+  legend style={at={(0.5,1.04)}, anchor=south, legend columns=3,
+    draw=none, font=\tiny, /tikz/every even column/.append style={column sep=1.5pt}},
+  bar width=6.4pt,
+  enlarge x limits=false,
+  ymajorgrids=true,
+  grid style={gray!20},
+]
+\addplot[fill=SpecBarBlue, draw=SpecBarBlue!70!black, bar shift=-12.8pt] coordinates {
+  (0,0.176) (0.68,0.115) (1.36,0.225) (2.04,0.113)
+};
+\addplot[fill=SpecBarGreen, draw=SpecBarGreen!70!black, bar shift=-6.4pt] coordinates {
+  (0,0.284) (0.68,0.185) (1.36,0.362) (2.04,0.182)
+};
+\addplot[fill=SpecBarRed, draw=SpecBarRed!70!black, bar shift=0pt] coordinates {
+  (0,0.431) (0.68,0.280) (1.36,0.549) (2.04,0.276)
+};
+\addplot[fill=SpecBarAmber, draw=SpecBarAmber!70!black, bar shift=6.4pt] coordinates {
+  (0,0.231) (0.68,0.150) (1.36,0.295) (2.04,0.148)
+};
+\addplot[fill=SpecBarTotal, draw=SpecBarTotal!70!black, bar shift=12.8pt,
+  nodes near coords={\pgfmathprintnumber[fixed,precision=2]{\pgfplotspointmeta}},
+  nodes near coords style={font=\tiny, /pgf/number format/fixed}] coordinates {
+  (0,1.122) (0.68,0.73) (1.36,1.43) (2.04,0.72)
+};
+\legend{Rule ext., Code ctx., Reasoning, Test agent, Total}
+\end{axis}
+\end{tikzpicture}
+\caption{Average model cost per submitted report by model family and pipeline
+stage. The GPT-5.4 bars correspond to Table~\ref{tab:cost}; the remaining bars
+are provider-level placeholder estimates that preserve the same stage shares.}
+\label{fig:model-cost-bars}
+\end{figure}
 
 \subsection{RQ5: Ablation Study}
 

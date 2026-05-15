@@ -32,6 +32,16 @@ explicit field-definition paragraphs. For each field, \tool{} records its
 canonical name, aliases, parent message or structure, type, allowed values when
 available, and source locations.
 
+\textbf{Document preprocessing.}
+\tool{} ingests RFC-style text, markdown, and text extracted from PDFs. It
+segments each standard by section, preserves sentence offsets, and keeps
+layout-derived regions such as message diagrams and tables as separate evidence
+blocks. Field-space construction uses these regions before prose-only evidence:
+diagram labels and table columns usually identify protocol objects more
+reliably than later explanatory text. Ambiguous candidates are retained with
+their local context so that the rule extractor can resolve them against nearby
+normative language rather than forcing an early merge.
+
 The field space serves two purposes. First, it gives the extractor a closed set
 of referents, reducing the chance that descriptive concepts such as
 ``compatibility mode'' are mistaken for checkable fields. Second, it preserves
@@ -60,6 +70,18 @@ condition, action, modality, source span, and any dependent fields. A
 deterministic checker then validates that the field appears in the field space,
 that the source span exists, and that the action belongs to a supported action
 family.
+
+\textbf{Prompt scope and validation.}
+The extractor receives one standard section, the relevant field-space entries,
+and a conservative lexicon of normative keywords derived from RFC 2119-style
+language. It does not see the whole standard. This boundary keeps extraction
+local enough for reviewers to audit while still allowing cross-references to be
+resolved through field-space identifiers. Each model output is a typed record
+that is checked for schema validity, source-span existence, duplicate rules,
+field-space references, and action-family membership. Malformed records are
+retried with a compact repair prompt; if validation still fails, the section is
+marked as insufficient evidence rather than converted into an unverifiable
+rule.
 
 \begin{table}[t]
 \centering
@@ -124,8 +146,11 @@ For the constrained field $f$, \tool{} generates aliases by splitting field
 tokens, normalizing case conventions, expanding common abbreviations, and
 including parent-structure names when available. It then constructs a symbol
 index using Tree-sitter~\cite{tree_sitter} with C/C++ grammars and
-compiler-aware parsing where available. Candidate identifiers are ranked by
-exact alias matches, token overlap, syntactic role, and proximity to
+compiler-aware parsing where available. Each indexed symbol records its file,
+scope, declaration span, use spans, enclosing function or type, and surrounding
+comments. The indexer also extracts a lightweight call graph from direct calls
+and syntactically visible function-pointer patterns. Candidate identifiers are
+ranked by exact alias matches, token overlap, syntactic role, and proximity to
 rule-action terms. Identifiers that are too generic, appear only as loop
 variables, or lack a plausible syntactic relationship to the action are
 down-ranked.
@@ -155,7 +180,9 @@ cap to avoid weak semantic matches dominating direct code evidence.
 
 The top snippets are then sent to an LLM semantic filter. The filter must choose
 the snippets most relevant to the rule, state the relationship between the
-snippet and the rule, and return a confidence score. If the model output is
+snippet and the rule, and return a confidence score. The filter sees only the
+rule and ranked snippets, not the whole repository, and it must cite snippet
+identifiers rather than make free-form code claims. If the model output is
 malformed or empty, \tool{} falls back to the deterministic ranking.
 
 The constants in Equation~(1) are intentionally simple rather than learned per
@@ -185,6 +212,14 @@ symbol index, configuration conditions, and a compact trace of how the variable
 was localized. The agent must produce a structured decision record with a
 label, supporting evidence, assumptions, missing evidence, and a short defect
 hypothesis when applicable.
+
+The reasoning prompt is intentionally evidence-bounded. The agent may cite only
+the standard spans, snippet identifiers, and call-graph records in its evidence
+bundle; claims about code outside the bundle must be phrased as missing
+evidence requests. A deterministic validator checks label membership, cited
+identifier presence, and source-span references before the decision is accepted.
+Invalid records are repaired within a small retry budget; if validation still
+fails, the rule remains \textsc{Insufficient}.
 
 \begin{algorithm}[t]
 \small
@@ -253,6 +288,14 @@ This conservative policy is important for reviewability: every reported
 confirmed inconsistency is tied to either executable evidence or a clearly
 marked manual reproduction plan.
 
+The validation runner supports three execution modes: extending an existing unit
+test, creating a small harness around a parser or validation function, and
+driving a command-line implementation with generated inputs. For each run, it
+records compiler options, environment variables, command lines, exit status,
+stdout, stderr, and relevant logs. Build failures and unreachable paths are
+reported as unmet validation conditions and are not counted as confirmed
+inconsistencies.
+
 \textbf{Oracle construction.}
 The validation oracle is derived from the field rule, not from an existing
 implementation. For a rejection rule, the oracle checks whether the target
@@ -261,86 +304,3 @@ input. For a presence or value rule, the oracle checks emitted messages,
 configuration state, or parser outputs when those are observable. When the
 expected behavior is not directly observable, \tool{} records the test as
 inconclusive rather than inferring correctness from the absence of a crash.
-
-\subsection{Implementation}
-\label{sec:implementation}
-
-We implemented \tool{} as a modular analysis pipeline. The current prototype
-contains four components: a standard parser, a code indexer, an LLM orchestration
-layer, and a validation-test runner. This section describes implementation
-choices that affect reproducibility and engineering trade-offs.
-
-\textbf{Standard processing.}
-The standard parser ingests RFC-style text, markdown, or converted PDF text. It
-segments documents by section, preserves sentence offsets, and detects
-normative keywords using a conservative lexicon derived from RFC 2119-style
-language. Field candidates are extracted from message diagrams, bullet lists,
-tables, and definitional paragraphs. When a field candidate is ambiguous, the
-parser retains all candidates and asks the extraction stage to resolve the
-reference against local context.
-
-\textbf{Code indexing.}
-The code indexer supports C and C++ in the prototype. It uses Tree-sitter with
-C/C++ grammars for a uniform symbol index and compiler-aware parsing where
-available for richer scope information. Each indexed symbol records its file,
-scope, declaration span, use spans, surrounding comments, and enclosing
-function or type. The indexer also extracts a lightweight call graph from direct
-calls and function-pointer-like patterns when they are syntactically visible.
-
-\textbf{LLM orchestration.}
-LLM calls are isolated behind typed prompts with JSON-like output schemas. The
-pipeline uses low-temperature decoding for extraction, alignment, and
-reasoning. Every LLM output passes through a deterministic validator that checks
-schema validity, source-span existence, identifier presence, duplicate entries,
-and label membership. Invalid outputs are retried with a compact repair prompt;
-after the retry budget is exhausted, \tool{} falls back to deterministic
-rankings or marks the sample as insufficient evidence.
-
-\textbf{Prompt boundaries.}
-The prompts are intentionally narrow. The extractor sees a section and the
-field space, not the whole standard. The aligner sees a rule and ranked code
-snippets, not the whole repository. The reasoner sees the evidence bundle and
-must cite snippet identifiers rather than free-form code claims. This design
-keeps token cost manageable and makes the output auditable.
-
-\textbf{Validation runner.}
-The validation runner currently supports three modes: extending an existing
-unit test, creating a small harness around a parser or validation function, and
-driving a command-line implementation with generated inputs. The runner records
-compiler options, environment variables, command lines, exit status, stdout,
-stderr, and relevant logs. If the target cannot be built or the path cannot be
-reached, the sample is not counted as confirmed.
-
-\textbf{Parameters.}
-Unless otherwise stated, the prototype keeps the top 8 files after file
-ranking, the top 20 variable candidates per rule, and the top 12 snippets per
-reasoning round. The maximum number of evidence-completion rounds is three. The
-validation agent receives at most two attempts per hypothesis before reporting
-unmet validation conditions. We tune these parameters on held-out protocol
-sections and keep them fixed for all evaluated implementations.
-
-\textbf{Caching and determinism.}
-To make repeated runs auditable, \tool{} stores every prompt, response,
-validator decision, and retrieved code bundle under a content hash. When the
-same rule and repository snapshot are analyzed again, deterministic stages are
-reused and LLM stages can be replayed from cache. The cache is also useful for
-manual inspection: a reviewer can open a report and see the exact evidence
-available to the reasoner at each round.
-
-\textbf{Failure handling.}
-The implementation distinguishes recoverable and terminal failures. Recoverable
-failures include malformed model output, missing optional build metadata, or a
-snippet that cannot be parsed by one parser but can still be indexed by
-Tree-sitter. Terminal failures include missing source files, standards that
-cannot be segmented, or implementations that cannot expose any parse or
-validation entry point. Terminal failures are reported as coverage gaps rather
-than silently omitted from aggregate metrics.
-
-\textbf{Manual review interface.}
-Although \tool{} is designed for automation, the prototype emits a compact
-review bundle for each candidate. The bundle contains the source text, the
-normalized rule, ranked variables, selected snippets, reasoning transcript,
-validation commands, and final label. This interface is important for building
-ground truth: protocol experts and maintainers can correct a rule, mark an
-implementation-specific exception, or confirm that a test demonstrates a real
-deviation.

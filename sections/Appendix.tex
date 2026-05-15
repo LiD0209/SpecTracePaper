@@ -14,6 +14,68 @@ The artifact for \tool{} contains the following components:
   \item Scripts that reproduce tables and figures from raw results.
 \end{itemize}
 
+\subsection{Prototype Engineering Details}
+\label{app:engineering}
+
+\tool{} is implemented as a modular pipeline with four components: a standard
+processor, a code indexer, an LLM orchestration layer, and a validation-test
+runner. The main text describes how these components support each analysis
+stage. This appendix records the engineering choices that affect
+reproducibility, auditability, and failure accounting.
+
+\textbf{Fixed analysis parameters.}
+Unless otherwise stated, the prototype keeps the top 8 files after file
+ranking, the top 20 variable candidates for each rule, and the top 12 snippets
+for each reasoning round. The maximum number of evidence-completion rounds is
+three. The validation agent receives at most two attempts per defect hypothesis
+before the sample is reported with unmet validation conditions. We tune these
+parameters once on held-out protocol sections and keep them fixed for all
+evaluated protocols and implementations.
+
+\textbf{Model invocation and validators.}
+LLM calls are isolated behind typed prompts with JSON-like output schemas. The
+pipeline uses low-temperature decoding for extraction, alignment, and
+reasoning. Every model response passes through a deterministic validator before
+it can affect downstream state. The validators check schema validity,
+source-span existence, field and identifier references, duplicate entries,
+label membership, and whether cited snippets were actually included in the
+evidence bundle. Invalid responses are retried with a compact repair prompt.
+After the retry budget is exhausted, \tool{} falls back to deterministic
+rankings where possible or records the sample as \textsc{Insufficient}.
+
+\textbf{Caching and replay.}
+To make repeated runs auditable, \tool{} stores prompts, model responses,
+validator decisions, retrieved code bundles, selected snippets, and validation
+commands under content hashes. The hash includes the normalized rule, the
+repository snapshot, prompt template version, model setting, and relevant
+retrieval parameters. When the same rule and repository snapshot are analyzed
+again, deterministic stages are reused and model-dependent stages can be
+replayed from cache. This cache also supports manual inspection: a reviewer can
+open a report and reconstruct the exact evidence available to the reasoner at
+each round.
+
+\textbf{Failure accounting.}
+The implementation distinguishes recoverable and terminal failures. Recoverable
+failures include malformed model output, missing optional build metadata,
+parser-specific indexing errors, and snippets that cannot be parsed by one
+front end but can still be indexed by Tree-sitter. Terminal failures include
+missing source files, standards that cannot be segmented, repositories that
+cannot be checked out at the recorded revision, and implementations that expose
+no reachable parse or validation entry point for the target rule. Recoverable
+failures remain attached to the sample as uncertainty notes. Terminal failures
+are reported as coverage gaps rather than silently omitted from aggregate
+metrics.
+
+\textbf{Review bundles.}
+Although \tool{} is designed for automation, the prototype emits a compact
+review bundle for each candidate report. The bundle contains the source text,
+normalized rule, field-space entry, ranked implementation variables, selected
+snippets, evidence-completion transcript, validation plan, commands, logs, and
+final label. These bundles support both author adjudication and maintainer
+communication: reviewers can correct a rule, mark an implementation-specific
+exception, identify missing code context, or confirm that a validation test
+demonstrates a real deviation.
+
 \subsection{Responsible Disclosure}
 
 Two confirmed reports were assigned CVEs after disclosure. For security-sensitive
